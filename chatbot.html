@@ -241,6 +241,47 @@
             font-size: 12px;
             opacity: 0.9;
         }
+
+        .quick-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 15px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .quick-btn {
+            padding: 8px 12px;
+            background: linear-gradient(135deg, #1e40af, #1e3a8a);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .quick-btn:hover {
+            background: linear-gradient(135deg, #1e3a8a, #1e40af);
+            transform: scale(1.05);
+        }
+
+        .message-time {
+            font-size: 10px;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+
+        .message-source {
+            font-size: 10px;
+            color: #1e40af;
+            font-weight: bold;
+            margin-top: 2px;
+        }
     </style>
 </head>
 
@@ -328,9 +369,17 @@
                     <p>How can I assist you today?</p>
                 </div>
                 <div class="message bot-message">
-                    Hello! I'm your UPSRTC assistant. I can help you with dashboard questions, data analysis, and
-                    general
-                    support. How can I assist you today?
+                    Hello! I'm your UPSRTC assistant. I can help you with ticket booking, route information, schedules, complaints, and general support. How can I assist you today?
+                </div>
+
+                <!-- Quick Action Buttons -->
+                <div class="quick-actions" id="quickActions">
+                    <button class="quick-btn" onclick="sendQuickMessage('Book a ticket')">🎫 Book Ticket</button>
+                    <button class="quick-btn" onclick="sendQuickMessage('Route information')">🗺️ Routes</button>
+                    <button class="quick-btn" onclick="sendQuickMessage('Bus schedule')">⏰ Schedule</button>
+                    <button class="quick-btn" onclick="sendQuickMessage('Fare information')">💰 Fare</button>
+                    <button class="quick-btn" onclick="sendQuickMessage('File complaint')">📝 Complaint</button>
+                    <button class="quick-btn" onclick="sendQuickMessage('Contact helpline')">📞 Contact</button>
                 </div>
             </div>
 
@@ -389,11 +438,32 @@
             typingIndicator.style.display = 'none';
         }
 
-        function addMessage(message, isUser = false) {
+        function addMessage(message, isUser = false, timestamp = null, source = null) {
             const chatBody = document.getElementById('chatBody');
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
-            messageDiv.textContent = message;
+
+            // Add message content
+            const messageContent = document.createElement('div');
+            messageContent.textContent = message;
+            messageDiv.appendChild(messageContent);
+
+            // Add timestamp if available
+            if (timestamp) {
+                const timeDiv = document.createElement('div');
+                timeDiv.className = 'message-time';
+                timeDiv.textContent = timestamp;
+                messageDiv.appendChild(timeDiv);
+            }
+
+            // Add source if available
+            if (source && !isUser) {
+                const sourceDiv = document.createElement('div');
+                sourceDiv.className = 'message-source';
+                sourceDiv.textContent = source;
+                messageDiv.appendChild(sourceDiv);
+            }
+
             chatBody.appendChild(messageDiv);
             scrollToBottom();
         }
@@ -438,7 +508,7 @@
                 if (response.ok) {
                     // Add bot response
                     setTimeout(() => {
-                        addMessage(data.response, false);
+                        addMessage(data.response, false, data.timestamp, data.source);
                     }, 500);
                 } else {
                     addMessage('Sorry, I encountered an error. Please try again.', false);
@@ -453,6 +523,11 @@
                 sendBtn.disabled = false;
                 messageInput.focus();
             }
+        }
+
+        function sendQuickMessage(message) {
+            document.getElementById('messageInput').value = message;
+            sendMessage();
         }
 
         // Auto-focus on input when chat opens

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NIC Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+
+<body class="p-6 font-sans bg-gray-100">
+  <!-- Header with Icons and Upload -->
+  <div class="flex items-center justify-between bg-white shadow px-4 py-3 mb-6">
+    <!-- Menu Icon -->
+    <div class="text-2xl cursor-pointer hover:text-blue-500">☰</div>
+
+    <!-- Title -->
+    <h1 class="text-xl font-bold text-gray-700">BA Performance Dashboard</h1>
+
+    <!-- Actions: Refresh and Upload via Images -->
+    <div class="flex items-center gap-4">
+      <!-- Upload CSV via Image -->
+      <label for="fileUpload" class="cursor-pointer">
+        <img
+          src="https://encrypted-tbn0.gstatic.com/ima ges?q=tbn:ANd9GcQWo-OkzmwNW-gV5thwCFZtdev4lQUkUTPZ4KwVHGUaCNeCtV9K9QWsuUAZVgLdYCJcaNo&usqp=CAU"
+          alt="Upload CSV" class="w-6 h-6 hover:opacity-70" />
+      </label>
+      <!-- Refresh Image -->
+      <img src="https://icon2.cleanpng.com/20180817/skz/1e8d3bbe2ea6991029356ca2542c569d.webp" alt="Refresh"
+        onclick="location.reload()" class="w-6 h-6 cursor-pointer hover:opacity-70" />
+
+      <input type="file" id="fileUpload" accept=".csv" class="hidden" onchange="handleFile(event)" />
+    </div>
+  </div>
+
+  <div class="text-center my-4">
+    <button onclick="takeTableScreenshot()"
+      class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+      📸 Screenshot Full BA Status
+    </button>
+  </div>
+
+  <div id="output" class="overflow-x-auto mt-6 max-w-4xl mx-auto bg-white shadow-md rounded p-4"></div>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+  <script>
+    const baMapping = {
+      "Madhya Pradesh": ["Manoj Srivastava"],
+      "Kerala": ["Pawan Singh", "Pawan Singh(LA)"],
+      "Chandigarh": ["Sagar Goel", "Sagar Goel (CH)"],
+      "Jammu & Kashmir": ["Pawan Singh", "Pawan Singh(LA)"],
+      "Andhra Pradesh": ["Tarun Ahuja", "Tarun Ahuja (AP)"],
+      "Haryana": ["Subh Mehra", "Subha Mehra (HR)"],
+      "Rajasthan": ["Amitesh Singh", "Amitesh Singh (RJ)"],
+      "Maharashtra": ["Subhasis Ballav", "Subhasis Ballav (MH)"],
+      "Andaman And Nicobar": ["Praveen Kumar", "Praveen Kumar (Andaman&Nicobar)"],
+      "Bihar": ["Divya Sinha", "Divya Sinha (BR)"],
+      "Delhi": ["Rakesh Sahu (DL)"],
+      "Goa": ["Satish Singh", "SATISH SINGH (GA)"],
+      "Gujarat": ["Amitesh Singh", "Amitesh Singh (GJ)"],
+      "Ladhak": ["Pawan Singh", "Pawan Singh(LA)"],
+      "Tamil Nadu": ["Rakesh Sahu", "Rakesh Sahu (TN)"],
+      "Uttar Pradesh": ["Amitesh Singh", "Amitesh Singh (UP)"],
+      "Uttarakhand": ["Himanshu Sati", "Himanshu Sati (UK)"],
+      "Arunachal Pradesh": ["Praveen Kumar", "Praveen Kumar (AR)"],
+      "Assam": ["Subhasis Ballav", "Subhasis Ballav (AS)"],
+      "Chhattisgarh": ["Sagar Goel", "Sagar Goel (Chattisgarh)"],
+      "Dadra & Nagar Haveli": ["Priyanka Verma (DN)"],
+      "Daman & Diu": ["Amitesh Singh", "Amitesh Singh (DD)"],
+      "Himachal Pradesh": ["Tushar Kaushik"],
+      "Jharkhand": ["Divya Sinha", "Divya Sinha (JH)"],
+      "Karnataka": ["Mohd Akib", "Mohd Akib (KA)"],
+      "Lakshadweep": ["Tarun Ahuja (LD)"],
+      "Manipur": ["Bharat Sati", "Bharat Sati (MN)"],
+      "Meghalaya": ["Satish Singh", "Satish Singh (ML)"],
+      "Mizoram": ["MOHD AKIB(MZ)"],
+      "Nagaland": ["Bharat Sati", "Bharat Sati  (NL)"],
+      "Odisha": ["Subhasis Ballav", "Subhasis Ballav (OR)"],
+      "Pondicherry": ["Sagar Goel", "Sagar Goel (PY)"],
+      "Punjab": ["Satish Singh", "Satish  Singh (PB)"],
+      "Sikkim": ["Divya Sinha", "Divya Sinha (SK)"],
+      "Telengana": ["Tarun Ahuja", "Tarun Ahuja (Telangana)"],
+      "Tripura": ["Mohd Akib", "MOHD AKIB (TR)"],
+      "West Bengal": ["Subh Mehra", "Subh  Mehra (WB)"]
+    };
+
+    document.getElementById('fileUpload').addEventListener('change', function (event) {
+      const file = event.target.files[0];
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        let json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+        // Normalize columns
+        json = json.map(row => {
+          const newRow = {};
+          for (let key in row) {
+            newRow[key.trim().toLowerCase()] = row[key];
+          }
+          return newRow;
+        });
+
+        // Find priority column
+        const priorityCol = Object.keys(json[0]).find(col => col.includes('priority'));
+        if (!priorityCol) {
+          alert("Priority column not found!");
+          return;
+        }
+
+        // Extract state
+        json.forEach(row => {
+          const match = (row['project'] || "").match(/-\s*([^-\n\r]+)/);
+          row['state'] = match ? match[1].trim().replace(/\b\w/g, l => l.toUpperCase()) : '';
+        });
+
+        // Match BA
+        json.forEach(row => {
+          const state = row['state'];
+          const assigned = row['assigned to /forwarded to'] || '';
+          const candidates = baMapping[state] || [];
+          row['ba'] = candidates.find(ba => assigned.toLowerCase().includes(ba.toLowerCase())) || null;
+        });
+
+        // Filter invalid
+        json = json.filter(row => row['ba'] && ['emergency', 'urgent', 'normal'].includes((row[priorityCol] || '').toLowerCase()));
+
+        // Grouping
+        const grouped = {};
+        json.forEach(row => {
+          const state = row['state'];
+          const ba = row['ba'];
+          const priority = row[priorityCol].toLowerCase();
+          const key = `${state}__${ba}`;
+          if (!grouped[key]) {
+            grouped[key] = { state, ba, emergency: 0, urgent: 0, normal: 0 };
+          }
+          grouped[key][priority]++;
+        });
+
+        // Convert to table format
+        const finalData = Object.values(grouped).map(row => {
+          const total = row.emergency + row.urgent + row.normal;
+          return { ...row, total };
+        });
+
+        // Sort by EMERGENCY
+        finalData.sort((a, b) => b.emergency - a.emergency);
+
+        // Render in table
+        const tableHTML = `
+          <table id="baTableSection" class="min-w-full text-sm text-left">
+            <thead class="bg-gray-200">
+              <tr>
+                <th class="px-4 py-2">State</th>
+                <th class="px-4 py-2">BA</th>
+                <th class="px-4 py-2">Emergency</th>
+                <th class="px-4 py-2">Urgent</th>
+                <th class="px-4 py-2">Normal</th>
+                <th class="px-4 py-2">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${finalData.map(row => `
+                <tr>
+                  <td class="border px-4 py-2">${row.state}</td>
+                  <td class="border px-4 py-2">${row.ba}</td>
+                  <td class="border px-4 py-2">${row.emergency}</td>
+                  <td class="border px-4 py-2">${row.urgent}</td>
+                  <td class="border px-4 py-2">${row.normal}</td>
+                  <td class="border px-4 py-2 font-bold ${row.total >= 20 ? 'bg-red-200' : ''}">${row.total}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        `;
+        document.getElementById('output').innerHTML = tableHTML;
+      };
+      reader.readAsArrayBuffer(file);
+    });
+
+    function takeTableScreenshot() {
+      const tableSection = document.getElementById("baTableSection");
+      if (!tableSection) {
+        alert("Table section not found!");
+        return;
+      }
+
+      html2canvas(tableSection, {
+        useCORS: true,
+        scale: 2
+      }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = 'BA_Status_Table.png';
+        link.href = canvas.toDataURL();
+        link.click();
+      });
+    }
+
+  </script>
+</body>
+
+</html>

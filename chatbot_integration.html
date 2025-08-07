@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UPSRTC Dashboard with Helpdesk</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <style>
+        /* Chatbot Widget Styles */
+        .chat-widget {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        .chat-toggle {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #1e40af, #1e3a8a);
+            color: white;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .chat-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .chat-window {
+            position: absolute;
+            bottom: 90px;
+            right: 0;
+            width: 380px;
+            height: 550px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            display: none;
+            flex-direction: column;
+            border: 2px solid #1e40af;
+        }
+
+        .chat-header {
+            background: linear-gradient(135deg, #1e40af, #1e3a8a);
+            color: white;
+            padding: 15px;
+            border-radius: 13px 13px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid #fbbf24;
+        }
+
+        .chat-header-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-container {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #fbbf24;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1e40af;
+        }
+
+        .header-text h3 {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .header-text p {
+            font-size: 12px;
+            opacity: 0.9;
+            margin: 0;
+        }
+
+        .chat-body {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background: #f8fafc;
+        }
+
+        .chat-input {
+            padding: 15px;
+            border-top: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 0 0 13px 13px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #d1d5db;
+            border-radius: 25px;
+            outline: none;
+            transition: border-color 0.3s ease;
+            font-size: 14px;
+        }
+
+        .message-input:focus {
+            border-color: #1e40af;
+        }
+
+        .send-btn {
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #1e40af, #1e3a8a);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .send-btn:hover {
+            background: linear-gradient(135deg, #1e3a8a, #1e40af);
+            transform: scale(1.05);
+        }
+
+        .send-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .message {
+            margin: 8px 0;
+            padding: 10px 15px;
+            border-radius: 15px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            background-color: #1e40af;
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 5px;
+        }
+
+        .bot-message {
+            background-color: #f3f4f6;
+            color: #374151;
+            margin-right: auto;
+            border-bottom-left-radius: 5px;
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 10px 15px;
+            background-color: #f3f4f6;
+            border-radius: 15px;
+            border-bottom-left-radius: 5px;
+            margin-right: auto;
+            max-width: 80%;
+        }
+
+        .typing-dots {
+            display: inline-block;
+        }
+
+        .typing-dots::after {
+            content: '';
+            animation: typing 1.5s infinite;
+        }
+
+        @keyframes typing {
+
+            0%,
+            20% {
+                content: '';
+            }
+
+            40% {
+                content: '.';
+            }
+
+            60% {
+                content: '..';
+            }
+
+            80%,
+            100% {
+                content: '...';
+            }
+        }
+
+        .welcome-message {
+            background: linear-gradient(135deg, #1e40af, #1e3a8a);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            text-align: center;
+            border: 2px solid #fbbf24;
+        }
+
+        .welcome-message h4 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .welcome-message p {
+            margin: 0;
+            font-size: 12px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+
+<body class="p-6 font-sans bg-gray-100">
+    <!-- Header -->
+    <div class="flex items-center justify-between bg-white shadow px-4 py-3 mb-6 border-b-4 border-blue-800">
+        <div class="flex items-center">
+            <div class="w-10 h-10 bg-blue-800 rounded-full flex items-center justify-center mr-3">
+                <span class="text-white font-bold text-lg">UPS</span>
+            </div>
+            <h1 class="text-xl font-bold text-blue-800">BA Performance Dashboard</h1>
+        </div>
+        <div class="flex items-center gap-4">
+            <img src="https://icon2.cleanpng.com/20180817/skz/1e8d3bbe2ea6991029356ca2542c569d.webp" alt="Refresh"
+                onclick="location.reload()" class="w-6 h-6 cursor-pointer hover:opacity-70" />
+            <label for="fileUpload" class="cursor-pointer">
+                <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQWo-OkzmwNW-gV5thwCFZtdev4lQUkUTPZ4KwVHGUaCNeCtV9K9QWsuUAZVgLdYCJcaNo&usqp=CAU"
+                    alt="Upload CSV" class="w-6 h-6 hover:opacity-70" />
+            </label>
+            <input type="file" id="fileUpload" accept=".csv" class="hidden" />
+        </div>
+    </div>
+
+    <div class="text-center my-4">
+        <button onclick="takeTableScreenshot()"
+            class="bg-blue-800 text-white px-6 py-3 rounded-lg hover:bg-blue-900 transition font-semibold">
+            📸 Screenshot Full BA Status
+        </button>
+    </div>
+
+    <div id="output"
+        class="overflow-x-auto mt-6 max-w-4xl mx-auto bg-white shadow-md rounded p-4 border-2 border-blue-800"></div>
+
+    <!-- Chatbot Widget -->
+    <div class="chat-widget" id="chatWidget">
+        <!-- Chat Toggle Button -->
+        <button class="chat-toggle" id="chatToggle" onclick="toggleChat()">
+            <span>💬</span>
+        </button>
+
+        <!-- Chat Window -->
+        <div class="chat-window" id="chatWindow">
+            <div class="chat-header">
+                <div class="chat-header-left">
+                    <div class="logo-container">
+                        <span class="logo-text">UPS</span>
+                    </div>
+                    <div class="header-text">
+                        <h3>UPSRTC Helpdesk</h3>
+                        <p>24/7 Support Available</p>
+                    </div>
+                </div>
+                <button onclick="toggleChat()" class="text-white hover:text-yellow-300 transition-colors">
+                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd"
+                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                            clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="chat-body" id="chatBody">
+                <div class="welcome-message">
+                    <h4>Welcome to UPSRTC Helpdesk</h4>
+                    <p>How can I assist you today?</p>
+                </div>
+                <div class="message bot-message">
+                    Hello! I'm your UPSRTC assistant. I can help you with dashboard questions, data analysis, and
+                    general
+                    support. How can I assist you today?
+                </div>
+            </div>
+
+            <div class="typing-indicator" id="typingIndicator">
+                <span class="typing-dots">Assistant is typing</span>
+            </div>
+
+            <div class="chat-input">
+                <div class="input-group">
+                    <input type="text" id="messageInput" class="message-input" placeholder="Type your message here..."
+                        onkeypress="handleKeyPress(event)">
+                    <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                            <path
+                                d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z">
+                            </path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Original dashboard code
+        const baMapping = {
+            "Madhya Pradesh": ["Manoj Srivastava"],
+            "Kerala": ["Pawan Singh", "Pawan Singh(LA)"],
+            "Chandigarh": ["Sagar Goel", "Sagar Goel (CH)"],
+            "Jammu & Kashmir": ["Pawan Singh", "Pawan Singh(LA)"],
+            "Andhra Pradesh": ["Tarun Ahuja", "Tarun Ahuja (AP)"],
+            "Haryana": ["Subh Mehra", "Subha Mehra (HR)"],
+            "Rajasthan": ["Amitesh Singh", "Amitesh Singh (RJ)"],
+            "Maharashtra": ["Subhasis Ballav", "Subhasis Ballav (MH)"],
+            "Andaman And Nicobar": ["Praveen Kumar", "Praveen Kumar (Andaman&Nicobar)"],
+            "Bihar": ["Divya Sinha", "Divya Sinha (BR)"],
+            "Delhi": ["Rakesh Sahu (DL)"],
+            "Goa": ["Satish Singh", "SATISH SINGH (GA)"],
+            "Gujarat": ["Amitesh Singh", "Amitesh Singh (GJ)"],
+            "Ladhak": ["Pawan Singh", "Pawan Singh(LA)"],
+            "Tamil Nadu": ["Rakesh Sahu", "Rakesh Sahu (TN)"],
+            "Uttar Pradesh": ["Amitesh Singh", "Amitesh Singh (UP)"],
+            "Uttarakhand": ["Himanshu Sati", "Himanshu Sati (UK)"],
+            "Arunachal Pradesh": ["Praveen Kumar", "Praveen Kumar (AR)"],
+            "Assam": ["Subhasis Ballav", "Subhasis Ballav (AS)"],
+            "Chhattisgarh": ["Sagar Goel", "Sagar Goel (Chattisgarh)"],
+            "Dadra & Nagar Haveli": ["Priyanka Verma (DN)"],
+            "Daman & Diu": ["Amitesh Singh", "Amitesh Singh (DD)"],
+            "Himachal Pradesh": ["Tushar Kaushik"],
+            "Jharkhand": ["Divya Sinha", "Divya Sinha (JH)"],
+            "Karnataka": ["Mohd Akib", "Mohd Akib (KA)"],
+            "Lakshadweep": ["Tarun Ahuja (LD)"],
+            "Manipur": ["Bharat Sati", "Bharat Sati (MN)"],
+            "Meghalaya": ["Satish Singh", "Satish Singh (ML)"],
+            "Mizoram": ["MOHD AKIB(MZ)"],
+            "Nagaland": ["Bharat Sati", "Bharat Sati  (NL)"],
+            "Odisha": ["Subhasis Ballav", "Subhasis Ballav (OR)"],
+            "Pondicherry": ["Sagar Goel", "Sagar Goel (PY)"],
+            "Punjab": ["Satish Singh", "Satish  Singh (PB)"],
+            "Sikkim": ["Divya Sinha", "Divya Sinha (SK)"],
+            "Telengana": ["Tarun Ahuja", "Tarun Ahuja (Telangana)"],
+            "Tripura": ["Mohd Akib", "MOHD AKIB (TR)"],
+            "West Bengal": ["Subh Mehra", "Subh  Mehra (WB)"]
+        };
+
+        document.getElementById('fileUpload').addEventListener('change', function (event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                let json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+                json = json.map(row => {
+                    const newRow = {};
+                    for (let key in row) {
+                        newRow[key.trim().toLowerCase()] = row[key];
+                    }
+                    return newRow;
+                });
+
+                const priorityCol = Object.keys(json[0]).find(col => col.includes('priority'));
+                if (!priorityCol) {
+                    alert("Priority column not found!");
+                    return;
+                }
+
+                json.forEach(row => {
+                    const match = (row['project'] || '').match(/-\s*([^\-\n\r]+)/);
+                    row['state'] = match ? match[1].trim().replace(/\b\w/g, l => l.toUpperCase()) : '';
+                });
+
+                json.forEach(row => {
+                    const state = row['state'];
+                    const assigned = (row['assigned to /forwarded to'] || '').trim().toLowerCase();
+                    const candidates = baMapping[state] || [];
+                    let matchedBA = null;
+                    for (let i = 0; i < candidates.length; i++) {
+                        if (assigned.includes(candidates[i].toLowerCase())) {
+                            matchedBA = candidates[i];
+                            break;
+                        }
+                    }
+                    row['ba'] = matchedBA || "Not Mapped";
+                });
+
+                json = json.filter(row => {
+                    const priority = (row[priorityCol] || '').toLowerCase();
+                    return row['state'] && row['assigned to /forwarded to'] &&
+                        ['emergency', 'urgent', 'normal'].includes(priority);
+                });
+
+                const grouped = {};
+                json.forEach(row => {
+                    const key = `${row.state}__${row.ba}`;
+                    if (!grouped[key]) {
+                        grouped[key] = {
+                            state: row.state,
+                            ba: row.ba,
+                            emergency: 0,
+                            urgent: 0,
+                            normal: 0
+                        };
+                    }
+                    grouped[key][(row[priorityCol] || '').toLowerCase()]++;
+                });
+
+                const finalData = Object.values(grouped).map(row => {
+                    const total = row.emergency + row.urgent + row.normal;
+                    return { ...row, total };
+                }).sort((a, b) => b.emergency - a.emergency);
+
+                const tableHTML = `
+                    <table id="baTableSection" class="min-w-full text-sm text-left">
+                        <thead class="bg-gray-200">
+                            <tr>
+                                <th class="px-4 py-2">State</th>
+                                <th class="px-4 py-2">BA</th>
+                                <th class="px-4 py-2">Emergency</th>
+                                <th class="px-4 py-2">Urgent</th>
+                                <th class="px-4 py-2">Normal</th>
+                                <th class="px-4 py-2">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${finalData.map(row => `
+                                <tr>
+                                    <td class="border px-4 py-2">${row.state}</td>
+                                    <td class="border px-4 py-2">${row.ba}</td>
+                                    <td class="border px-4 py-2">${row.emergency}</td>
+                                    <td class="border px-4 py-2">${row.urgent}</td>
+                                    <td class="border px-4 py-2">${row.normal}</td>
+                                    <td class="border px-4 py-2 font-bold ${row.total >= 20 ? 'bg-red-200' : ''}">${row.total}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>`;
+
+                document.getElementById('output').innerHTML = tableHTML;
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function takeTableScreenshot() {
+            const tableSection = document.getElementById("baTableSection");
+            if (!tableSection) {
+                alert("Table section not found!");
+                return;
+            }
+            html2canvas(tableSection, {
+                useCORS: true,
+                scale: 2
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'BA_Status_Table.png';
+                link.href = canvas.toDataURL();
+                link.click();
+            });
+        }
+
+        // Chatbot functionality
+        let isChatOpen = false;
+
+        function toggleChat() {
+            const chatWindow = document.getElementById('chatWindow');
+            const chatToggle = document.getElementById('chatToggle');
+
+            if (isChatOpen) {
+                chatWindow.style.display = 'none';
+                chatToggle.innerHTML = '<span>💬</span>';
+            } else {
+                chatWindow.style.display = 'flex';
+                chatToggle.innerHTML = '<span>✕</span>';
+            }
+
+            isChatOpen = !isChatOpen;
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        function showTypingIndicator() {
+            const typingIndicator = document.getElementById('typingIndicator');
+            typingIndicator.style.display = 'block';
+            scrollToBottom();
+        }
+
+        function hideTypingIndicator() {
+            const typingIndicator = document.getElementById('typingIndicator');
+            typingIndicator.style.display = 'none';
+        }
+
+        function addMessage(message, isUser = false) {
+            const chatBody = document.getElementById('chatBody');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+            messageDiv.textContent = message;
+            chatBody.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            const chatBody = document.getElementById('chatBody');
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const message = messageInput.value.trim();
+
+            if (!message) return;
+
+            // Disable input and button
+            messageInput.disabled = true;
+            sendBtn.disabled = true;
+
+            // Add user message
+            addMessage(message, true);
+            messageInput.value = '';
+
+            // Show typing indicator
+            showTypingIndicator();
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+
+                const data = await response.json();
+
+                // Hide typing indicator
+                hideTypingIndicator();
+
+                if (response.ok) {
+                    // Add bot response
+                    setTimeout(() => {
+                        addMessage(data.response, false);
+                    }, 500);
+                } else {
+                    addMessage('Sorry, I encountered an error. Please try again.', false);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                hideTypingIndicator();
+                addMessage('Sorry, I\'m having trouble connecting. Please check your internet connection.', false);
+            } finally {
+                // Re-enable input and button
+                messageInput.disabled = false;
+                sendBtn.disabled = false;
+                messageInput.focus();
+            }
+        }
+
+        // Auto-focus on input when chat opens
+        document.getElementById('messageInput').addEventListener('focus', function () {
+            if (!isChatOpen) {
+                toggleChat();
+            }
+        });
+    </script>
+</body>
+
+</html>
